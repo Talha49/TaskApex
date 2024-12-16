@@ -353,7 +353,7 @@ export default function Login() {
 
               {/* Register Link */}
               <p className="text-center text-gray-600 dark:text-gray-400">
-                Don't have an account?{' '}
+                Don&apos;st have an account?{' '}
                 <button
                   type="button"
                   className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
