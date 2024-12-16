@@ -165,7 +165,7 @@ export default function Sidebar() {
             className="rounded-lg"
           />
           {!isCollapsed && (
-            <span className="font-bold text-lg">Talhism</span>
+            <span className="font-bold text-lg">TaskApex</span>
           )}
         </div>
       </div>
