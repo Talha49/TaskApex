@@ -11,12 +11,16 @@ import { Button } from "@/components/ui/button";
 import CreateTaskDialog from "@/app/_components/CreateTaskDialog/CreateTaskDialog";
 import {
   deleteTasks,
+  
   fetchTasks,
+  
+  fetchTasksbyuserid,
   selectFilteredTasks,
   setEditingTask,
   setSearchQuery,
   storeCompleteTasks,
 } from "@/lib/Features/UserSlice";
+import { useSession } from "next-auth/react";
 
 const taskVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -41,17 +45,24 @@ const TaskComp = () => {
   const [selectedTask, setSelectedTask] = useState([]);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [isSelectMultiple, setIsSelectMultiple] = useState(false);
-  const filteredTasks = useSelector(selectFilteredTasks);
   const searchQuery = useSelector((state) => state.task.searchQuery);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const {data:session} = useSession()
+  const filteredTasks = useSelector(selectFilteredTasks);
 
+  const userId = session?.user?.id;
+
+  console.log("JJ", userId)
 
   useEffect(() => {
-    if (taskStatus === "idle") {
-      dispatch(fetchTasks());
+    if (taskStatus === "idle" && userId) {
+      dispatch(fetchTasks(userId));
+     
     }
-  }, [taskStatus, dispatch]);
+  }, [taskStatus, dispatch, userId]);
+  
+  
 
   useEffect(() => {
     setSaveTask(tasks);

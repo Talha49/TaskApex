@@ -19,6 +19,7 @@ import {
   updateTask,
 } from "@/lib/Features/UserSlice";
 import EmojiPicker from "emoji-picker-react";
+import { useSession } from "next-auth/react";
 
 const CreateTaskDialog = () => {
   const [title, setTitle] = useState("");
@@ -29,6 +30,7 @@ const CreateTaskDialog = () => {
   const [category, setCategory] = useState("");
   const dispatch = useDispatch();
   const editingTask = useSelector((state) => state.task.editingTask);
+  const {data:session} = useSession()
 
   useEffect(() => {
     if (editingTask) {
@@ -41,27 +43,31 @@ const CreateTaskDialog = () => {
   }, [editingTask]);
 
   const handleSubmit = () => {
-    if (title && description && category) {
-      const taskData = { 
-        title, 
-        description, 
-        emojiIcon, 
-        category: [category] // Wrap category in an array
-      };
-      console.log("Submitting task with data:", taskData);
-      if (editingTask) {
-        dispatch(
-          updateTask({
-            id: editingTask.id,
-            updateFields: { title, description, emojiIcon, category: [category] },
-          })
-        );
-      } else {
-        dispatch(createTask(taskData));
-      }
-      handleClose();
+    if (!title || !description || !category) {
+      alert("All fields are required.");
+      return;
     }
+  
+    const taskData = { title, description, emojiIcon, category: [category] , userId: session?.user?.id  // Add the userId here
+    };
+  
+    if (editingTask && editingTask._id) {
+      // Use _id for updating the task
+      dispatch(
+        updateTask({
+          id: editingTask._id, // Use _id here
+          updateFields: taskData,
+        })
+      );
+      console.log("SIS", editingTask._id) 
+    } else {
+      dispatch(createTask(taskData));
+    }
+  
+    handleClose();
   };
+  
+
   const handleClose = () => {
     setTitle("");
     setDescription("");
@@ -106,6 +112,18 @@ const CreateTaskDialog = () => {
                 open={openEmojiPicker}
               />
             </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Label htmlFor="title" className="text-left">
+              UserID
+            </Label>
+            <Input
+              id="title"
+              placeholder="Enter task title"
+              value={session?.user?.id}
+              onChange={(e) => setTitle(e.target.value)}
+              readOnly
+            />
           </div>
           <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="title" className="text-left">

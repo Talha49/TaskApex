@@ -1,19 +1,21 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/Mongo/Connectdb";
 import User from "@/modals/Users/User";
 
 export const authOptions = {
-  debug: process.env.NODE_ENV === 'development',
-
+  debug: process.env.NODE_ENV === "development",
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours in seconds
+    maxAge: 24 * 60 * 60, // 24 hours
   },
-
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -21,11 +23,11 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
         fullName: { label: "Full Name", type: "text", optional: true },
         contact: { label: "Contact", type: "text", optional: true },
+        team: { label: "Team", type: "text", optional: true },
       },
-
       async authorize(credentials) {
         await dbConnect();
-        const { email, password, fullName, contact } = credentials;
+        const { email, password, fullName, contact, team } = credentials;
 
         try {
           let user = await User.findOne({ email });
@@ -36,91 +38,96 @@ export const authOptions = {
               throw new Error("All fields are required for registration.");
             }
 
-            const existingUser = await User.findOne({ email });
-
-            if (existingUser) {
-              throw new Error("User already exists");
-            }
-
             const hashedPassword = await bcrypt.hash(password, 10);
             user = new User({
               fullName,
               email,
               password: hashedPassword,
-              contact,
+              contact: contact || "",
+              team: team || "",
+              role: "user", // Hardcode default role
             });
 
             await user.save();
           } else {
             // Login
+            if (!user.password) throw new Error("Use social login instead.");
             const isValidPassword = await bcrypt.compare(password, user.password);
             if (!isValidPassword) {
               throw new Error("Invalid email or password.");
             }
           }
 
-          // Generate a token
-          const token = generateToken(user);
-
-          // Save the token to the user document
-          user.token = token; 
-          await user.save(); 
-
           return {
             id: user._id.toString(),
             email: user.email,
             fullName: user.fullName,
             contact: user.contact,
-            token, // Return the token as part of the user object
+            team: user.team,
+            role: user.role,
           };
         } catch (error) {
           console.error("Authentication error:", error);
-          throw new Error(error.message || "An error occurred during authentication.");
+          throw new Error(error.message || "Authentication failed.");
         }
       },
     }),
   ],
-
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      if (account?.provider === "google") {
+        await dbConnect();
+        let existingUser = await User.findOne({ email: user.email });
+
+        if (!existingUser) {
+          existingUser = await User.create({
+            fullName: user.name,
+            email: user.email,
+            image: user.image,
+            isSocialLogin: true,
+            role: "user", // Hardcode default role
+            team: "",
+          });
+        }
+
+        token.id = existingUser._id.toString();
+        token.email = existingUser.email;
+        token.fullName = existingUser.fullName;
+        token.contact = existingUser.contact || "";
+        token.team = existingUser.team || "";
+        token.role = existingUser.role;
+        token.image = existingUser.image || "";
+        token.isSocialLogin = true;
+      }
+
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.fullName = user.fullName;
         token.contact = user.contact;
-        token.token = user.token; // Save the token in the JWT
+        token.team = user.team;
+        token.role = user.role;
       }
       return token;
     },
-
     async session({ session, token }) {
       session.user.id = token.id;
       session.user.email = token.email;
       session.user.fullName = token.fullName;
       session.user.contact = token.contact;
-      session.user.token = token.token; // Save the token in the session
-
+      session.user.team = token.team;
+      session.user.role = token.role;
+      session.user.image = token.image || "";
+      session.user.isSocialLogin = token.isSocialLogin || false;
       return session;
     },
   },
-
   pages: {
     signIn: "/Auth",
-    error: "/Error"
+    error: "/Error",
   },
-
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-// Function to generate a JWT token
-const generateToken = (user) => {
-  return jwt.sign(
-    { id: user._id, email: user.email },
-    process.env.NEXTAUTH_SECRET, // Use your secret
-    { expiresIn: '24h' } // Set token expiry
-  );
-};
-
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };

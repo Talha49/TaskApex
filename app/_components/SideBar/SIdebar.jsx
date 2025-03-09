@@ -18,20 +18,24 @@ import {
 } from 'react-icons/fa';
 import { ModeToggle } from '@/components/ui/Toggle';
 
-const menuItems = [
-  { href: "/", icon: FaHome, text: "Home", badge: null },
-  { href: "/Tasks", icon: FaTasks, text: "Tasks", badge: "New" },
-  { href: "/CompletedTasks", icon: FaCheckCircle, text: "Complete Tasks", badge: null },
-  { href: "/Dashboard", icon: FaChartBar, text: "Dashboard", badge: null },
-];
 
 export default function Sidebar() {
   const { data: session, status } = useSession();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const router = useRouter();
-
-  // Handle window resize
+  
+  const menuItems = [
+  { href: "/", icon: FaHome, text: "Home", badge: null },
+  { href: "/Tasks", icon: FaTasks, text: "Tasks", badge: "New" },
+  { href: "/CompletedTasks", icon: FaCheckCircle, text: "Complete Tasks", badge: null },
+  { href: "/Dashboard", icon: FaChartBar, text: "Dashboard", badge: null },
+  ...(session?.user?.role === "admin" ? [
+    { href: "/Admin", icon: FaUserCircle, text: "Admin", badge: null },
+  ] : []),
+];
+  
+  
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
@@ -62,7 +66,7 @@ export default function Sidebar() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="absolute bottom-20 left-full ml-2 w-64 bg-neutral-200 dark:bg-neutral-800 rounded-lg shadow-lg p-4 z-50"
+          className="absolute bottom-16 left-10 ml-2 w-64 bg-neutral-200 dark:bg-neutral-800 rounded-lg shadow-lg p-4 z-50"
         >
           <div className="flex flex-col space-y-4">
             <div className="flex items-center space-x-3 pb-4 border-b dark:border-neutral-700">
@@ -75,21 +79,16 @@ export default function Sidebar() {
               />
               <div className="flex flex-col">
                 <span className="font-medium text-sm dark:text-white">
-                  {session?.user?.fullName || "User"}
+                  {session?.user?.fullName || session?.user?.name ||"User"}
                 </span>
                 <span className="text-xs text-neutral-500 dark:text-neutral-400">
                   {session?.user?.email || ""}
                 </span>
+                <span className='text-xs flex gap-2 text-neutral-500 dark:text-neutral-400'>
+                 <p>Role :</p> {session?.user?.role || "User"}
+                </span>
               </div>
             </div>
-            
-            <button
-              onClick={() => router.push('/profile')}
-              className="flex items-center space-x-2 text-sm text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors"
-            >
-              <FaUserCircle className="w-4 h-4" />
-              <span>View Profile</span>
-            </button>
             
             <button
               onClick={handleSignOut}
@@ -201,9 +200,9 @@ export default function Sidebar() {
                 className="rounded-full"
               />
               {!isCollapsed && (
-                <span className="text-sm font-medium truncate">
-                  {session.user.fullName}
-                </span>
+                <span className="text-sm font-medium truncate text-gray-700 dark:text-gray-200">
+  {session.user.fullName || session.user.name}
+</span>
               )}
             </button>
             <ProfileMenu />

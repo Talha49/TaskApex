@@ -4,8 +4,9 @@ import { signIn } from "next-auth/react";
 import { 
   Mail, Eye, EyeOff, Loader2, 
   AlertCircle, ArrowRight, 
-  LogIn 
+  LogIn  
 } from 'lucide-react';
+import { FcGoogle } from "react-icons/fc";
 import { useRouter } from 'next/navigation';
 import { IoClose } from 'react-icons/io5';
 import axios from 'axios';
@@ -91,6 +92,11 @@ export default function Login() {
     } finally {
       setLoading(false); // Reset loading state
     }
+  };
+
+  const handleGoogleSignIn = async () => {
+    const result = await signIn("google", { callbackUrl: "/Tasks" });
+    console.log("Google SignIn Result:", result);
   };
   
   const AnimatedBackground = () => (
@@ -350,6 +356,14 @@ export default function Login() {
                   </>
                 )}
               </button>
+
+              <div className="flex flex-col items-center justify-center gap-y-4 w-full">
+  <p className="text-lg font-medium">Continue With</p>
+  <button onClick={handleGoogleSignIn} className="bg-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-x-2 border border-gray-200">
+    <FcGoogle size={24} />
+    <span className="text-lg font-medium">Google</span>
+  </button>
+</div>
 
               {/* Register Link */}
               <p className="text-center text-gray-600 dark:text-gray-400">

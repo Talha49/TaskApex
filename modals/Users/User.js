@@ -1,4 +1,3 @@
-// lib/models/User.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
@@ -31,9 +30,18 @@ const userSchema = new mongoose.Schema(
     token: {
       type: String, // To store the JWT token
     },
+    role: {
+      type: String,
+      enum: ["admin", "user", "manager", "readonly"],
+      default: "user",  // Default role is "user"
+    },
+    team: {
+      type: String,
+      default: "",      // Field to associate the user with a team
+    },
   },
   {
-    timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields
+    timestamps: true,  // Automatically creates createdAt and updatedAt fields
   }
 );
 

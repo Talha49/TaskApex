@@ -1,13 +1,13 @@
 // lib/models/taskModel.js
 import mongoose from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
 
 const taskSchema = new mongoose.Schema({
-  id: {
-    type: String,
-    default: uuidv4,
-    unique: true,
+
+  userId: {
+    type: String,  // Changed from ObjectId to String
+    required: true
   },
+
   emojiIcon: {
     type: String,
     required: true,

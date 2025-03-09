@@ -1,12 +1,10 @@
-"use client"
-import React, { useState } from 'react';
+"use client";
+import React, { useState } from "react";
 import { signIn } from "next-auth/react";
-import { 
-  Mail, Eye, EyeOff, Loader2, 
-  AlertCircle, ArrowRight, User, Phone,
-  UserPlus 
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Mail, Eye, EyeOff, Loader2, AlertCircle, ArrowRight, User, Phone, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FcGoogle } from "react-icons/fc";
+import { FaTeamspeak } from "react-icons/fa";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -14,15 +12,15 @@ export default function Register() {
     email: "",
     password: "",
     contact: "",
+    team: "",
   });
-  
   const [focused, setFocused] = useState({
     fullName: false,
     email: false,
     password: false,
     contact: false,
+    team: false,
   });
-  
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,7 +28,7 @@ export default function Register() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRegister = async (e) => {
@@ -45,15 +43,14 @@ export default function Register() {
         password: formData.password,
         fullName: formData.fullName,
         contact: formData.contact,
+        team: formData.team,
       });
 
       if (res.error) {
         setError(res.error);
       } else {
         console.log("Registered successfully", res);
-        setFormData({ email: "", password: "" }); // Reset the form
         router.push("/Tasks");
-       
       }
     } catch (err) {
       setError("An unexpected error occurred");
@@ -87,9 +84,7 @@ export default function Register() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
       <AnimatedBackground />
-      
       <div className="w-full max-w-6xl flex rounded-2xl shadow-2xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm relative z-10">
-        {/* Left Side - Form */}
         <div className="w-full lg:w-1/2 p-8 md:p-12">
           <div className="max-w-md mx-auto space-y-8">
             <div className="text-center">
@@ -98,70 +93,61 @@ export default function Register() {
             </div>
 
             <form onSubmit={handleRegister} className="space-y-6">
-              {/* Full Name Input */}
               <div className="relative">
                 <input
                   type="text"
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleChange}
-                  onFocus={() => setFocused(prev => ({ ...prev, fullName: true }))}
-                  onBlur={() => setFocused(prev => ({ ...prev, fullName: false }))}
+                  onFocus={() => setFocused((prev) => ({ ...prev, fullName: true }))}
+                  onBlur={() => setFocused((prev) => ({ ...prev, fullName: false }))}
                   required
-                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                    focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none 
-                    transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
-                    dark:text-white"
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
                   placeholder=" "
                 />
-                <label className={`absolute left-4 transition-all duration-300 pointer-events-none
-                  ${(focused.fullName || formData.fullName) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
+                <label
+                  className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.fullName || formData.fullName) ? "text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-gray-400 top-3"}`}
+                >
                   Full Name
                 </label>
                 <User className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
               </div>
 
-              {/* Email Input */}
               <div className="relative">
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  onFocus={() => setFocused(prev => ({ ...prev, email: true }))}
-                  onBlur={() => setFocused(prev => ({ ...prev, email: false }))}
+                  onFocus={() => setFocused((prev) => ({ ...prev, email: true }))}
+                  onBlur={() => setFocused((prev) => ({ ...prev, email: false }))}
                   required
-                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                    focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none 
-                    transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
-                    dark:text-white"
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
                   placeholder=" "
                 />
-                <label className={`absolute left-4 transition-all duration-300 pointer-events-none
-                  ${(focused.email || formData.email) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
+                <label
+                  className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.email || formData.email) ? "text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-gray-400 top-3"}`}
+                >
                   Email Address
                 </label>
                 <Mail className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
               </div>
 
-              {/* Password Input */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  onFocus={() => setFocused(prev => ({ ...prev, password: true }))}
-                  onBlur={() => setFocused(prev => ({ ...prev, password: false }))}
+                  onFocus={() => setFocused((prev) => ({ ...prev, password: true }))}
+                  onBlur={() => setFocused((prev) => ({ ...prev, password: false }))}
                   required
-                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                    focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none 
-                    transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
-                    dark:text-white"
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
                   placeholder=" "
                 />
-                <label className={`absolute left-4 transition-all duration-300 pointer-events-none
-                  ${(focused.password || formData.password) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
+                <label
+                  className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.password || formData.password) ? "text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-gray-400 top-3"}`}
+                >
                   Password
                 </label>
                 <button
@@ -173,59 +159,73 @@ export default function Register() {
                 </button>
               </div>
 
-              {/* Contact Input */}
               <div className="relative">
                 <input
                   type="tel"
                   name="contact"
                   value={formData.contact}
                   onChange={handleChange}
-                  onFocus={() => setFocused(prev => ({ ...prev, contact: true }))}
-                  onBlur={() => setFocused(prev => ({ ...prev, contact: false }))}
-                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                    focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none 
-                    transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
-                    dark:text-white"
+                  onFocus={() => setFocused((prev) => ({ ...prev, contact: true }))}
+                  onBlur={() => setFocused((prev) => ({ ...prev, contact: false }))}
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
                   placeholder=" "
                 />
-                <label className={`absolute left-4 transition-all duration-300 pointer-events-none
-                  ${(focused.contact || formData.contact) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
+                <label
+                  className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.contact || formData.contact) ? "text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-gray-400 top-3"}`}
+                >
                   Contact Number
                 </label>
                 <Phone className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
               </div>
 
-              {/* Terms and Conditions */}
+              <div className="relative">
+                <input
+                  type="text"
+                  name="team"
+                  value={formData.team}
+                  onChange={handleChange}
+                  onFocus={() => setFocused((prev) => ({ ...prev, team: true }))}
+                  onBlur={() => setFocused((prev) => ({ ...prev, team: false }))}
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
+                  placeholder=" "
+                />
+                <label
+                  className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.team || formData.team) ? "text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-gray-400 top-3"}`}
+                >
+                  Team Name
+                </label>
+                <FaTeamspeak className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
+              </div>
+
               <div className="flex items-start space-x-2">
                 <input
                   type="checkbox"
                   required
-                  className="mt-1 w-4 h-4 rounded border-gray-300 text-indigo-600 
-                    focus:ring-indigo-500 transition-colors"
+                  className="mt-1 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-colors"
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  I agree to the <button type="button" className="text-indigo-600 dark:text-indigo-400 hover:underline">Terms of Service</button> and <button type="button" className="text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</button>
+                  I agree to the{" "}
+                  <button type="button" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                    Terms of Service
+                  </button>{" "}
+                  and{" "}
+                  <button type="button" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                    Privacy Policy
+                  </button>
                 </span>
               </div>
 
-              {/* Error Message */}
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 px-4 py-3 rounded-lg animate-shake 
-                  flex items-center space-x-2">
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 px-4 py-3 rounded-lg animate-shake flex items-center space-x-2">
                   <AlertCircle className="h-5 w-5" />
                   <p className="text-sm">{error}</p>
                 </div>
               )}
 
-              {/* Register Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full bg-indigo-600 dark:bg-indigo-500 text-white py-3 rounded-lg font-semibold
-                  flex items-center justify-center space-x-2
-                  ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:ring-4 focus:ring-indigo-200 dark:focus:ring-indigo-800'}
-                  transform transition-all duration-300 ease-in-out
-                  hover:scale-[1.02] active:scale-[0.98]`}
+                className={`w-full bg-indigo-600 dark:bg-indigo-500 text-white py-3 rounded-lg font-semibold flex items-center justify-center space-x-2 ${loading ? "opacity-70 cursor-not-allowed" : "hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:ring-4 focus:ring-indigo-200 dark:focus:ring-indigo-800"} transform transition-all duration-300 ease-in-out hover:scale-[1.02] active:scale-[0.98]`}
               >
                 {loading ? (
                   <>
@@ -240,9 +240,19 @@ export default function Register() {
                 )}
               </button>
 
-              {/* Sign In Link */}
+              <div className="flex flex-col items-center justify-center gap-y-4 w-full">
+                <p className="text-lg font-medium">Continue With</p>
+                <button
+                  onClick={() => signIn("google")}
+                  className="bg-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-x-2 border border-gray-200"
+                >
+                  <FcGoogle size={24} />
+                  <span className="text-lg font-medium">Google</span>
+                </button>
+              </div>
+
               <p className="text-center text-gray-600 dark:text-gray-400">
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <button type="button" onClick={() => signIn()} className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
                   Sign In
                 </button>
@@ -251,15 +261,14 @@ export default function Register() {
           </div>
         </div>
 
-        {/* Right Side - Decorative */}
         <div className="hidden lg:flex lg:w-1/2 bg-indigo-600 dark:bg-indigo-500 p-12 items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-indigo-800 dark:from-indigo-500 dark:to-indigo-700" />
           <div className="absolute inset-0 opacity-30">
             <svg className="w-full h-full" viewBox="0 0 100 100">
               <defs>
                 <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style={{ stopColor: '#fff', stopOpacity: 0.2 }} />
-                  <stop offset="100%" style={{ stopColor: '#fff', stopOpacity: 0.5 }} />
+                  <stop offset="0%" style={{ stopColor: "#fff", stopOpacity: 0.2 }} />
+                  <stop offset="100%" style={{ stopColor: "#fff", stopOpacity: 0.5 }} />
                 </linearGradient>
               </defs>
               <circle cx="50" cy="50" r="40" className="animate-pulse-slow" fill="url(#grad)" />

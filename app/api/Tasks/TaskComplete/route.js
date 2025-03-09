@@ -11,6 +11,7 @@ export async function POST(req) {
     const { taskdata } = await req.json();
     console.log('Received Data:', taskdata);
     const task = new Completetask({
+      userId: taskdata.userId,
       title: taskdata.title,
       description: taskdata.description,
       emojiIcon: taskdata.emojiIcon || '😊', 
