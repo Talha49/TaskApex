@@ -1,26 +1,40 @@
-// app/api/Tasks/DeleteTask/route.js
+import { NextResponse } from "next/server";
+import dbConnect from "../../../../lib/Mongo/Connectdb";
+import Task from "../../../../modals/Task/Task";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-import dbConnect from "@/lib/Mongo/Connectdb";
-import Task from "@/modals/Task/Task";
-
-
+// DELETE: Delete one or more tasks
 export async function DELETE(req) {
+  await dbConnect();
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    await dbConnect();
     const { taskIds } = await req.json();
 
-    if (!taskIds || taskIds.length === 0) {
-      return new Response(JSON.stringify({ message: 'No task IDs provided' }), { status: 400 });
+    if (!taskIds || (Array.isArray(taskIds) && taskIds.length === 0)) {
+      return NextResponse.json({ error: "No task IDs provided" }, { status: 400 });
     }
 
-    const result = await Task.deleteMany({ id: { $in: taskIds } });
+    const ids = Array.isArray(taskIds) ? taskIds : [taskIds];
+    const tasks = await Task.find({ _id: { $in: ids }, tenantId: session.user.tenantId });
 
-    if (result.deletedCount === 0) {
-      return new Response(JSON.stringify({ message: 'No tasks found with the provided IDs' }), { status: 404 });
+    if (tasks.length === 0) {
+      return NextResponse.json({ error: "No tasks found" }, { status: 404 });
     }
 
-    return new Response(JSON.stringify({ message: `${result.deletedCount} task(s) deleted successfully` }), { status: 200 });
+    // Only admin can delete
+    if (session.user.role !== "admin") {
+      return NextResponse.json({ error: "Only admins can delete tasks" }, { status: 403 });
+    }
+
+    const result = await Task.deleteMany({ _id: { $in: ids }, tenantId: session.user.tenantId });
+    return NextResponse.json({ message: `${result.deletedCount} task(s) deleted` });
   } catch (error) {
-    return new Response(JSON.stringify({ message: 'Failed to delete task(s)', error: error.message }), { status: 500 });
+    return NextResponse.json({ error: "Failed to delete tasks", details: error.message }, { status: 500 });
   }
 }

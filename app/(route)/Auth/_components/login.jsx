@@ -1,48 +1,27 @@
-"use client"
-import React, { useState } from 'react';
-import { signIn } from "next-auth/react";
+"use client";
+import React, { useState, useEffect } from 'react';
+import { signIn, useSession } from "next-auth/react";
 import { 
   Mail, Eye, EyeOff, Loader2, 
   AlertCircle, ArrowRight, 
-  LogIn  
+  LogIn, Building2 
 } from 'lucide-react';
 import { FcGoogle } from "react-icons/fc";
 import { useRouter } from 'next/navigation';
 import { IoClose } from 'react-icons/io5';
 import axios from 'axios';
-import { IoMdArrowRoundBack } from 'react-icons/io';
-import { MdOutlineNavigateNext } from 'react-icons/md';
 import ForgotPasswordDialog from './ForgotPasswordDialog';
 
-
-
-// const ForgotPasswordDialog = ({ children, isOpen, onClose }) => {
-//   return (
-//     <div
-//       className={`${
-//         isOpen ? "fixed animate-fade-in z-50" : "hidden animate-fade-out"
-//       } inset-0 overflow-auto bg-black bg-opacity-20 flex  items-center justify-center top-0 ml-8`}
-//     >
-//       <div
-//         className="absolute top-20 right-5 text-3xl cursor-pointer z-10 hover:bg-gray-300 rounded-lg transition-all"
-//         onClick={onClose}
-//       >
-//         <IoClose />
-//       </div>
-//       <div className="bg-white shadow-lg rounded-lg border w-[500px] min-h-[300px] m-4 p-4">
-//         {children}
-//       </div>
-//     </div>
-//   );
-// };
 export default function Login() {
   const [isOpen, setIsOpen] = useState(false);
-
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
   const [formData, setFormData] = useState({
+    companyName: "",
     email: "",
     password: "",
   });
   const [focused, setFocused] = useState({
+    companyName: false,
     email: false,
     password: false,
   });
@@ -60,45 +39,113 @@ export default function Login() {
     newPass: "",
     confirm: "",
   });
-  const router = useRouter()
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === "authenticated" && !session?.user?.isVerified) {
+      setForgotEmail(session.user.email);
+      setOtp(session.user.otp);
+      setIsVerificationOpen(true);
+    } else if (status === "authenticated" && session?.user?.isVerified) {
+      router.push("/Tasks");
+    }
+  }, [status, session]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true); // Set loading state to true
-    setError("");     // Clear any previous errors
-      try {
-      // Attempt to log in with credentials
+    setLoading(true);
+    setError("");
+    try {
       const res = await signIn("credentials", {
-        redirect: false, // Prevent automatic redirection
-        email: formData.email, // Pass the email
-        password: formData.password, // Pass the password
+        redirect: false,
+        companyName: formData.companyName,
+        email: formData.email,
+        password: formData.password,
       });
-  
-      if (res.error) {
-        console.error("Login error:", res.error);
-        setError(res.error); 
-      } else {
-        console.log("Logged in successfully:", res);
-        router.push("/Tasks"); 
-        setFormData({ email: "", password: "" }); 
+
+      if (res?.error) {
+        setError(res.error);
       }
     } catch (err) {
-      console.error("Unexpected error:", err);
       setError("An unexpected error occurred. Please try again.");
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    const result = await signIn("google", { callbackUrl: "/Tasks" });
-    console.log("Google SignIn Result:", result);
+    await signIn("google", { callbackUrl: "/Tasks" });
   };
-  
+
+  const handleSendOtp = async () => {
+    setForgotError("");
+    setForgotSuccess("");
+    setIsSendingOTP(true);
+    try {
+      if (!forgotEmail || !formData.companyName) {
+        setForgotError("Email and Company Name are required.");
+        setIsSendingOTP(false);
+        return;
+      }
+      const res = await axios.post("/api/auth/Forgot_password", {
+        email: forgotEmail,
+        companyName: formData.companyName,
+      });
+      if (res.data.message) {
+        setForgotSuccess(res.data.message);
+        setOtp(res.data.otp);
+      } else {
+        setForgotError(res.data.error);
+      }
+    } catch (error) {
+      setForgotError("Failed to send OTP. Please try again.");
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    setForgotError("");
+    if (!newPasswordData.newPass || !newPasswordData.confirm) {
+      setForgotError("Both fields are required.");
+      return;
+    } else if (newPasswordData.newPass !== newPasswordData.confirm) {
+      setForgotError("Passwords do not match.");
+      return;
+    }
+    setIsSendingOTP(true);
+    try {
+      const res = await axios.put("/api/auth/Reset_password", {
+        email: forgotEmail,
+        newPassword: newPasswordData.newPass,
+        companyName: formData.companyName,
+      });
+      setForgotSuccess(res.data.message);
+      setNewPasswordData({ newPass: "", confirm: "" });
+      setIsOpen(false);
+    } catch (error) {
+      setForgotError("Failed to update password. Please try again.");
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleVerificationComplete = async () => {
+    try {
+      await axios.put("/api/auth/verify", { email: forgotEmail, companyName: formData.companyName });
+      setIsVerificationOpen(false);
+      router.push("/Tasks");
+    } catch (error) {
+      setForgotError("Verification failed. Please try again.");
+    }
+  };
+
   const AnimatedBackground = () => (
     <div className="absolute inset-0 overflow-hidden">
       <div className="absolute -inset-[100%] opacity-50">
@@ -122,96 +169,13 @@ export default function Login() {
   );
 
   const handleNewPasswordChange = (e) => {
-    setNewPasswordData({
-      ...newPasswordData,
-      [e.target.id]: e.target.value,
-    });
+    setNewPasswordData({ ...newPasswordData, [e.target.id]: e.target.value });
   };
-
-  const handleSendOtp = async () => {
-    setForgotError("");
-    setForgotSuccess("");
-    setIsSendingOTP(true);
-    try {
-      if (!forgotEmail) {
-        setForgotError("Email is required.");
-        setIsSendingOTP(false);
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
-        setForgotError("Invalid email address.");
-        setIsSendingOTP(false);
-      } else {
-        const res = await axios.post(
-          "/api/auth/Forgot_password",
-          {
-            email: forgotEmail,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        if (res.data.message) {
-          // console.log(res.data);
-          setForgotSuccess(res.data.message);
-          setIsSendingOTP(false);
-          setOtp(res?.data?.otp);
-        } else {
-          console.log(res.data);
-          setForgotError(res.data.error);
-          setIsSendingOTP(false);
-        }
-      }
-    } catch (error) {
-      console.log(error);
-      setIsSendingOTP(false);
-    }
-  };
-
-  const handleUpdatePassword = async () => {
-    setForgotError(""); // Reset any existing errors
-
-    if (!newPasswordData.newPass || !newPasswordData.confirm) {
-      setForgotError("Both fields are required.");
-      return;
-    } else if (newPasswordData.newPass !== newPasswordData.confirm) {
-      setForgotError("Passwords do not match.");
-      return;
-    } else {
-      setIsSendingOTP(true);
-      try {
-        const res = await axios.put(
-          "/api/auth/Reset_password",
-          {
-            email: forgotEmail,
-            newPassword: newPasswordData.newPass,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        setForgotSuccess(res?.data?.message);
-        setIsSendingOTP(false);
-        setNewPasswordData({
-          newPass: "",
-          confirm: "",
-        });
-      } catch (error) {
-        setForgotError("Failed to update password. Please try again later.");
-        setIsSendingOTP(false);
-      }
-    }
-  };
-
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
       <AnimatedBackground />
-      
-      <div className="w-full max-w-6xl flex rounded-2xl shadow-2xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm relative ">
-        {/* Left Side - Decorative */}
+      <div className="w-full max-w-6xl flex rounded-2xl shadow-2xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm relative">
         <div className="hidden lg:flex lg:w-1/2 bg-indigo-600 dark:bg-indigo-500 p-12 items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-indigo-800 dark:from-indigo-500 dark:to-indigo-700" />
           <div className="absolute inset-0 opacity-30">
@@ -232,17 +196,30 @@ export default function Login() {
             <LogIn className="h-24 w-24 mx-auto mt-8 opacity-90" />
           </div>
         </div>
-
-        {/* Right Side - Login Form */}
         <div className="w-full lg:w-1/2 p-8 md:p-12">
           <div className="max-w-md mx-auto space-y-8">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 animate-fade-in">Sign In</h2>
               <p className="text-gray-600 dark:text-gray-400 animate-fade-in-delay">Welcome back! Please enter your details</p>
             </div>
-
             <form onSubmit={handleLogin} className="space-y-6">
-              {/* Email Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  name="companyName"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  onFocus={() => setFocused(prev => ({ ...prev, companyName: true }))}
+                  onBlur={() => setFocused(prev => ({ ...prev, companyName: false }))}
+                  required
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
+                  placeholder=" "
+                />
+                <label className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.companyName || formData.companyName) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
+                  Company Name
+                </label>
+                <Building2 className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
+              </div>
               <div className="relative">
                 <input
                   type="email"
@@ -252,20 +229,14 @@ export default function Login() {
                   onFocus={() => setFocused(prev => ({ ...prev, email: true }))}
                   onBlur={() => setFocused(prev => ({ ...prev, email: false }))}
                   required
-                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                    focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none 
-                    transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
-                    dark:text-white"
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
                   placeholder=" "
                 />
-                <label className={`absolute left-4 transition-all duration-300 pointer-events-none
-                  ${(focused.email || formData.email) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
+                <label className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.email || formData.email) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
                   Email Address
                 </label>
                 <Mail className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
               </div>
-
-              {/* Password Input */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -275,14 +246,10 @@ export default function Login() {
                   onFocus={() => setFocused(prev => ({ ...prev, password: true }))}
                   onBlur={() => setFocused(prev => ({ ...prev, password: false }))}
                   required
-                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                    focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none 
-                    transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
-                    dark:text-white"
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
                   placeholder=" "
                 />
-                <label className={`absolute left-4 transition-all duration-300 pointer-events-none
-                  ${(focused.password || formData.password) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
+                <label className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.password || formData.password) ? 'text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 top-3'}`}>
                   Password
                 </label>
                 <button
@@ -293,56 +260,38 @@ export default function Login() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-
-              {/* Remember Me & Forgot Password */}
               <div className="flex items-center justify-between">
                 <label className="flex items-center space-x-2 cursor-pointer group">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 
-                      focus:ring-indigo-500 transition-colors"
+                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-colors"
                   />
                   <span className="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-300 transition-colors">
                     Remember me
                   </span>
                 </label>
-                <p className=" text-right my-1 text-sm">
-                <span
-                  className="text-blue-500 hover:underline cursor-pointer"
-                  onClick={() => {
-                    setIsOpen(true);
-                  }}
-                >
-                  Forgot Password
-                </span>
-              </p>
+                <p className="text-right my-1 text-sm">
+                  <span
+                    className="text-blue-500 hover:underline cursor-pointer"
+                    onClick={() => {
+                      setForgotEmail(formData.email);
+                      setIsOpen(true);
+                    }}
+                  >
+                    Forgot Password
+                  </span>
+                </p>
               </div>
-
-              {/* Error Message */}
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 px-4 py-3 rounded-lg animate-shake 
-                  flex items-center space-x-2">
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 px-4 py-3 rounded-lg animate-shake flex items-center space-x-2">
                   <AlertCircle className="h-5 w-5" />
                   <p className="text-sm">{error}</p>
                 </div>
               )}
-              {/* { loginSuccess && (
-                <div className="bg-green-300 dark:bg-green-500/30 text-black dark:text-yellow-200 px-4 py-3 rounded-lg animate-shake 
-                  flex items-center space-x-2">
-                  <AlertCircle className="h-5 w-5" />
-                  <p className="text-sm">Login Successful!</p>
-                </div>
-              )} */}
-
-              {/* Login Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full bg-indigo-600 dark:bg-indigo-500 text-white py-3 rounded-lg font-semibold
-                  flex items-center justify-center space-x-2
-                  ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:ring-4 focus:ring-indigo-200 dark:focus:ring-indigo-800'}
-                  transform transition-all duration-300 ease-in-out
-                  hover:scale-[1.02] active:scale-[0.98]`}
+                className={`w-full bg-indigo-600 dark:bg-indigo-500 text-white py-3 rounded-lg font-semibold flex items-center justify-center space-x-2 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:ring-4 focus:ring-indigo-200 dark:focus:ring-indigo-800'} transform transition-all duration-300 ease-in-out hover:scale-[1.02] active:scale-[0.98]`}
               >
                 {loading ? (
                   <>
@@ -356,18 +305,15 @@ export default function Login() {
                   </>
                 )}
               </button>
-
               <div className="flex flex-col items-center justify-center gap-y-4 w-full">
-  <p className="text-lg font-medium">Continue With</p>
-  <button onClick={handleGoogleSignIn} className="bg-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-x-2 border border-gray-200">
-    <FcGoogle size={24} />
-    <span className="text-lg font-medium">Google</span>
-  </button>
-</div>
-
-              {/* Register Link */}
+                <p className="text-lg font-medium">Continue With</p>
+                <button onClick={handleGoogleSignIn} className="bg-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-x-2 border border-gray-200">
+                  <FcGoogle size={24} />
+                  <span className="text-lg font-medium">Google</span>
+                </button>
+              </div>
               <p className="text-center text-gray-600 dark:text-gray-400">
-                Don&apos;st have an account?{' '}
+                Don’t have an account?{' '}
                 <button
                   type="button"
                   className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
@@ -380,35 +326,55 @@ export default function Login() {
           </div>
         </div>
       </div>
-     {/* Forgot Password Dialog */}
-     <ForgotPasswordDialog 
-  isOpen={isOpen} 
-  onClose={() => {
-    setIsOpen(false);
-    // Reset all forgot password related states
-    setForgotEmail(""); 
-    setForgotError(""); 
-    setForgotSuccess(""); 
-    setOtp(null); 
-    setEnteredOTP(""); 
-    setVarified(false); 
-    setNewPasswordData({ newPass: "", confirm: "" }); 
-  }}
-  forgotEmail={forgotEmail}
-  setForgotEmail={setForgotEmail}
-  handleSendOtp={handleSendOtp}
-  isSendingOTP={isSendingOTP}
-  otp={otp}
-  enteredOTP={enteredOTP}
-  setEnteredOTP={setEnteredOTP}
-  forgotError={forgotError}
-  forgotSuccess={forgotSuccess}
-  varified={varified}
-  setVarified={setVarified}
-  newPasswordData={newPasswordData}
-  handleNewPasswordChange={handleNewPasswordChange}
-  handleUpdatePassword={handleUpdatePassword}
-/>
+      <ForgotPasswordDialog 
+        isOpen={isOpen}
+        onClose={() => {
+          setIsOpen(false);
+          setForgotEmail("");
+          setForgotError("");
+          setForgotSuccess("");
+          setOtp(null);
+          setEnteredOTP("");
+          setVarified(false);
+          setNewPasswordData({ newPass: "", confirm: "" });
+        }}
+        companyName={formData.companyName}
+        forgotEmail={forgotEmail}
+        setForgotEmail={setForgotEmail}
+        handleSendOtp={handleSendOtp}
+        isSendingOTP={isSendingOTP}
+        otp={otp}
+        enteredOTP={enteredOTP}
+        setEnteredOTP={setEnteredOTP}
+        forgotError={forgotError}
+        forgotSuccess={forgotSuccess}
+        varified={varified}
+        setVarified={setVarified}
+        newPasswordData={newPasswordData}
+        handleNewPasswordChange={handleNewPasswordChange}
+        handleUpdatePassword={handleUpdatePassword}
+      />
+      <ForgotPasswordDialog 
+        isOpen={isVerificationOpen}
+        onClose={() => setIsVerificationOpen(false)}
+        companyName={formData.companyName}
+        forgotEmail={forgotEmail}
+        setForgotEmail={setForgotEmail}
+        handleSendOtp={handleSendOtp}
+        isSendingOTP={isSendingOTP}
+        otp={otp}
+        enteredOTP={enteredOTP}
+        setEnteredOTP={setEnteredOTP}
+        forgotError={forgotError}
+        forgotSuccess={forgotSuccess}
+        varified={varified}
+        setVarified={setVarified}
+        newPasswordData={newPasswordData}
+        handleNewPasswordChange={handleNewPasswordChange}
+        handleUpdatePassword={handleUpdatePassword}
+        isVerificationMode={true}
+        onVerificationComplete={handleVerificationComplete}
+      />
     </div>
   );
 }

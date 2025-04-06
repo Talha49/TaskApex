@@ -1,38 +1,38 @@
-import dbConnect from "@/lib/Mongo/Connectdb";
-import Task from "@/modals/Task/Task";
+import { NextResponse } from "next/server";
+import dbConnect from "../../../../lib/Mongo/Connectdb";
+import Task from "../../../../modals/Task/Task";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
+
+// POST: Create a new task
 export async function POST(req) {
+  await dbConnect();
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    await dbConnect();
+    const { title, description, category, emojiIcon } = await req.json();
 
-    const data = await req.json();
-    console.log('Received Data:', data);
-
-    // Validate required fields
-    const { userId, title, description, category } = data;
-    if (!userId || !title || !description || !category) {
-      return Response.json({ message: 'Missing required fields' }, { status: 400 });
+    if (!title || !description || !category) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const task = new Task({
-      userId,
+      tenantId: session.user.tenantId,
+      createdBy: session.user.id,
       title,
       description,
-      emojiIcon: data.emojiIcon || '😊',
       category: Array.isArray(category) ? category : [category],
+      emojiIcon: emojiIcon || "😊",
     });
 
     await task.save();
-    return Response.json(task, { status: 201 });
+    return NextResponse.json(task, { status: 201 });
   } catch (error) {
-    console.error('Error creating task:', error);
-
-    // Handle duplicate key errors specifically
-    if (error.code === 11000) {
-      return Response.json({ message: 'Duplicate key error' }, { status: 400 });
-    }
-
-    // Generic error response
-    return Response.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create task", details: error.message }, { status: 500 });
   }
 }

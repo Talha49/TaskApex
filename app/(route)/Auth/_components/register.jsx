@@ -1,10 +1,12 @@
 "use client";
-import React, { useState } from "react";
-import { signIn } from "next-auth/react";
-import { Mail, Eye, EyeOff, Loader2, AlertCircle, ArrowRight, User, Phone, UserPlus } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { Mail, Eye, EyeOff, Loader2, AlertCircle, ArrowRight, User, Phone, UserPlus, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaTeamspeak } from "react-icons/fa";
+import axios from "axios";
+import ForgotPasswordDialog from "./ForgotPasswordDialog";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -13,6 +15,7 @@ export default function Register() {
     password: "",
     contact: "",
     team: "",
+    companyName: "",
   });
   const [focused, setFocused] = useState({
     fullName: false,
@@ -20,11 +23,33 @@ export default function Register() {
     password: false,
     contact: false,
     team: false,
+    companyName: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotError, setForgotError] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState("");
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
+  const [otp, setOtp] = useState(null);
+  const [enteredOTP, setEnteredOTP] = useState("");
+  const [varified, setVarified] = useState(false);
+  const [newPasswordData, setNewPasswordData] = useState({ newPass: "", confirm: "" });
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // Handle post-registration verification
+  useEffect(() => {
+    if (status === "authenticated" && !session?.user?.isVerified) {
+      setForgotEmail(session.user.email);
+      setOtp(session.user.otp);
+      setIsVerificationOpen(true);
+    } else if (status === "authenticated" && session?.user?.isVerified) {
+      router.push("/Tasks");
+    }
+  }, [status, session, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,19 +69,62 @@ export default function Register() {
         fullName: formData.fullName,
         contact: formData.contact,
         team: formData.team,
+        companyName: formData.companyName,
       });
 
-      if (res.error) {
+      if (res?.error) {
         setError(res.error);
-      } else {
-        console.log("Registered successfully", res);
-        router.push("/Tasks");
+        setLoading(false);
       }
     } catch (err) {
       setError("An unexpected error occurred");
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSignIn = async () => {
+    await signIn("google", { callbackUrl: "/Tasks" });
+  };
+
+  const handleSendOtp = async () => {
+    setForgotError("");
+    setForgotSuccess("");
+    setIsSendingOTP(true);
+    try {
+      if (!forgotEmail || !formData.companyName) {
+        setForgotError("Email and Company Name are required.");
+        setIsSendingOTP(false);
+        return;
+      }
+      const res = await axios.post("/api/auth/Forgot_password", {
+        email: forgotEmail,
+        companyName: formData.companyName,
+      });
+      if (res.data.message) {
+        setForgotSuccess(res.data.message);
+        setOtp(res.data.otp);
+      } else {
+        setForgotError(res.data.error);
+      }
+    } catch (error) {
+      setForgotError("Failed to send OTP. Please try again.");
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleVerificationComplete = async () => {
+    try {
+      await axios.put("/api/auth/verify", { email: forgotEmail, companyName: formData.companyName });
+      setIsVerificationOpen(false);
+      router.push("/Tasks");
+    } catch (error) {
+      setForgotError("Verification failed. Please try again.");
+    }
+  };
+
+  const handleNewPasswordChange = (e) => {
+    setNewPasswordData({ ...newPasswordData, [e.target.id]: e.target.value });
   };
 
   const AnimatedBackground = () => (
@@ -197,6 +265,26 @@ export default function Register() {
                 <FaTeamspeak className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
               </div>
 
+              <div className="relative">
+                <input
+                  type="text"
+                  name="companyName"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  onFocus={() => setFocused((prev) => ({ ...prev, companyName: true }))}
+                  onBlur={() => setFocused((prev) => ({ ...prev, companyName: false }))}
+                  required
+                  className="peer w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition-all duration-300 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm dark:text-white"
+                  placeholder=" "
+                />
+                <label
+                  className={`absolute left-4 transition-all duration-300 pointer-events-none ${(focused.companyName || formData.companyName) ? "text-xs -top-2 bg-white dark:bg-gray-900 px-1 text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-gray-400 top-3"}`}
+                >
+                  Company Name
+                </label>
+                <Building2 className="absolute right-4 top-3.5 h-5 w-5 text-gray-400" />
+              </div>
+
               <div className="flex items-start space-x-2">
                 <input
                   type="checkbox"
@@ -243,7 +331,7 @@ export default function Register() {
               <div className="flex flex-col items-center justify-center gap-y-4 w-full">
                 <p className="text-lg font-medium">Continue With</p>
                 <button
-                  onClick={() => signIn("google")}
+                  onClick={handleGoogleSignIn}
                   className="bg-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-x-2 border border-gray-200"
                 >
                   <FcGoogle size={24} />
@@ -253,7 +341,7 @@ export default function Register() {
 
               <p className="text-center text-gray-600 dark:text-gray-400">
                 Already have an account?{" "}
-                <button type="button" onClick={() => signIn()} className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                <button type="button" onClick={() => router.push("/Auth")} className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
                   Sign In
                 </button>
               </p>
@@ -282,6 +370,29 @@ export default function Register() {
           </div>
         </div>
       </div>
+
+      {/* Verification Dialog */}
+      <ForgotPasswordDialog
+        isOpen={isVerificationOpen}
+        onClose={() => setIsVerificationOpen(false)}
+        companyName={formData.companyName}
+        forgotEmail={forgotEmail}
+        setForgotEmail={setForgotEmail}
+        handleSendOtp={handleSendOtp}
+        isSendingOTP={isSendingOTP}
+        otp={otp}
+        enteredOTP={enteredOTP}
+        setEnteredOTP={setEnteredOTP}
+        forgotError={forgotError}
+        forgotSuccess={forgotSuccess}
+        varified={varified}
+        setVarified={setVarified}
+        newPasswordData={newPasswordData}
+        handleNewPasswordChange={handleNewPasswordChange}
+        handleUpdatePassword={() => {}} // Not needed for verification, so empty function
+        isVerificationMode={true}
+        onVerificationComplete={handleVerificationComplete}
+      />
     </div>
   );
 }

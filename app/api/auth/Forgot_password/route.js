@@ -1,37 +1,33 @@
 import dbConnect from "@/lib/Mongo/Connectdb";
 import User from "@/modals/Users/User";
+import Tenant from "@/modals/Tenant/Tenant";
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer"
-
+import nodemailer from "nodemailer";
 
 export async function POST(req) {
-  const { email } = await req.json();
+  const { email, companyName } = await req.json();
 
-  if (!email) {
-    return NextResponse.json({ error: "Email is required." });
+  if (!email || !companyName) {
+    return NextResponse.json({ error: "Email and Company Name are required." });
   }
 
   try {
     await dbConnect();
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return NextResponse.json({
-        error: "No account with that email address exists.",
-      });
+    const tenant = await Tenant.findOne({ name: companyName });
+    if (!tenant) {
+      return NextResponse.json({ error: "Company not found." });
     }
 
-  
-    // Generate a 5-digit OTP
+    const user = await User.findOne({ email, tenantId: tenant._id });
+    if (!user) {
+      return NextResponse.json({ error: "No account with that email exists in this company." });
+    }
+
     const otp = Math.floor(10000 + Math.random() * 90000).toString();
 
-    // Set up nodemailer transporter
     const transporter = nodemailer.createTransport({
       service: "Gmail",
-      auth: {
-        user: process.env.EMAIL_USER, // Your email address
-        pass: process.env.EMAIL_PASSWORD, // Your email password
-      },
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
     });
 
     const mailOptions = {
@@ -41,18 +37,11 @@ export async function POST(req) {
       text: `Your OTP code is ${otp}. Please use this code to reset your password. The code is valid for 10 minutes.`,
     };
 
-    // Send the email with OTP
     await transporter.sendMail(mailOptions);
 
-    // Return the OTP to the client (in practice, you might not want to send the OTP back)
-    return NextResponse.json({
-      message: "OTP sent to your email.",
-      otp,
-    });
+    return NextResponse.json({ message: "OTP sent to your email.", otp });
   } catch (error) {
     console.error("Error sending OTP email:", error);
-    return NextResponse.json({
-      error: "Failed to send OTP. Please try again.",
-    });
+    return NextResponse.json({ error: "Failed to send OTP. Please try again." });
   }
 }

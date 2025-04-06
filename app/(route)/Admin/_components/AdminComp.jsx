@@ -95,11 +95,11 @@ export default function AdminComp() {
   const [totalPages, setTotalPages] = useState(1);
   const PAGE_SIZE = 10;
 
-  // All hooks must be called before any returns
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/users/Get?page=${page}&limit=${PAGE_SIZE}`, {
+      // Updated: Fetch users filtered by tenantId
+      const res = await fetch(`/api/users/Get?page=${page}&limit=${PAGE_SIZE}&tenantId=${session.user.tenantId}`, {
         headers: { Authorization: `Bearer ${session?.user.id}` },
       });
       const data = await res.json();
@@ -136,7 +136,6 @@ export default function AdminComp() {
     handleSearch(searchTerm);
   }, [searchTerm, handleSearch]);
 
-  // Early returns after all hooks
   if (status === "loading") {
     return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-blue-500" size={30} /></div>;
   }
@@ -179,13 +178,14 @@ export default function AdminComp() {
 
     setIsLoading(true);
     try {
+      // Updated: Include tenantId in user creation
       const res = await fetch("/api/users/Create", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.user.id}`
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, tenantId: session.user.tenantId }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -214,13 +214,14 @@ export default function AdminComp() {
 
     setIsLoading(true);
     try {
+      // Updated: Include tenantId in user update
       const res = await fetch(`/api/users/RUD/${editingUser._id}`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.user.id}`
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, tenantId: session.user.tenantId }),
       });
       const data = await res.json();
       if (res.ok) {
